@@ -16,15 +16,9 @@ task_3 = DAG(
     "task_3",
 
     start_date=datetime(2023, 8, 19, 0, 0),  # Replace with a close-to-current timestamp
-    schedule='* * * * *', # '0 0 * * *',  # Run every day at midnight
+    schedule='0 0 * * *', # '* * * * *', #   # Run every day at midnight
     catchup=False,
     end_date=None,
-
-    # default_args={
-    #     "retries": 1,
-    # },
-    #schedule_interval="0 0 * * *",  # Run once a day at midnight
-    #start_date=datetime(2023, 1, 1)
 )
 
 def read_traffic_data(**kwargs):
