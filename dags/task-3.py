@@ -1,0 +1,179 @@
+# standard packages
+from datetime import datetime, timedelta
+import pandas as pd
+import numpy as np
+from io import StringIO
+import os
+
+# airflow packages
+from airflow import DAG
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python_operator import PythonOperator
+from airflow.utils.email import send_email
+from airflow.operators.python_operator import BranchPythonOperator
+
+task_3 = DAG(
+    "task_3",
+
+    start_date=datetime(2023, 8, 19, 0, 0),  # Replace with a close-to-current timestamp
+    schedule='* * * * *',  # Run every minute
+    catchup=False,
+    end_date=None,
+
+    # default_args={
+    #     "retries": 1,
+    # },
+    #schedule_interval="0 0 * * *",  # Run once a day at midnight
+    #start_date=datetime(2023, 1, 1)
+)
+
+def read_traffic_data(**kwargs):
+
+    print('os.environ')
+    print(os.environ)
+    print('os.environ ((((((((((((((((()))))))))))))))))')
+
+    df_traffic_data = pd.read_csv('./data/traffic_data.csv')
+    df_traffic_data['bf_date'] = pd.to_datetime(df_traffic_data['bf_date'])
+    df_traffic_data['bf_time'] = pd.to_datetime(df_traffic_data['bf_time'], format='%H:%M:%S').dt.time
+    df_traffic_data['hour'] = df_traffic_data['bf_time'].apply(lambda x: x.hour)
+    df_traffic_data['is_am'] = df_traffic_data['hour'] < 12
+    kwargs['ti'].xcom_push(key='df_traffic_data', value=df_traffic_data)
+
+def filter_ips(**kwargs):
+    ti = kwargs['ti']
+    df = ti.xcom_pull(task_ids='read_traffic_data', key='df_traffic_data')
+    ip_traffic = df.groupby('ip')['gbps'].sum().reset_index() # Step 1: Aggregate the data by IP and calculate the total traffic (sum of 'gbps')    
+    threshold = ip_traffic['gbps'].quantile(0.20) # Step 2: Determine the threshold for low-traffic IPs (e.g., 10th percentile)
+    df_ips = ip_traffic[ip_traffic['gbps'] > threshold] # Step 3: Filter low-traffic IPs
+
+    print(df_ips)
+
+    print(df_ips['ip'].values.tolist())
+
+    high_ips = df_ips['ip'].values.tolist()
+
+    df_filtered = df[df['ip'].isin(high_ips)]
+
+    print(df_filtered)
+
+    kwargs['ti'].xcom_push(key='df_filtered', value=df_filtered)
+
+split_am_pm = DummyOperator(task_id='split_am_pm', dag=task_3)
+
+def filter_am(**kwargs):
+    ti = kwargs['ti']
+    df = ti.xcom_pull(task_ids='filter_ips', key='df_filtered')
+
+    print(df)
+    print(type(df))
+    print(df.columns)
+    df_am = df[df['is_am']]
+    kwargs['ti'].xcom_push(key='df_am', value=df_am)
+
+def filter_pm(**kwargs):
+    ti = kwargs['ti']
+    df = ti.xcom_pull(task_ids='filter_ips', key='df_filtered')
+
+    print(df)
+    print(type(df))
+    print(df.columns)
+
+    df_pm = df[~df['is_am']]
+    kwargs['ti'].xcom_push(key='df_pm', value=df_pm)
+
+def day_of_week(**kwargs):
+    today = datetime.now()
+    if today.weekday() < 5:
+        return "do_nothing_am"
+    else:
+        return "send_email_am"
+
+def send_email_am(**kwargs):
+    ti = kwargs['ti']
+    df = ti.xcom_pull(task_ids='filter_am', key='df_am')
+    ip_traffic = df.groupby('ip')['gbps'].sum().reset_index() # Step 1: Aggregate the data by IP and calculate the total traffic (sum of 'gbps')    
+    ip_traffic_sorted = ip_traffic.sort_values(by='gbps', ascending=False) # Sort the DataFrame in descending order by traffic ('gbps')
+    top_ips = ip_traffic_sorted.head(3)  # Get the IP addresses with the highest traffic (top N IPs, e.g., top 5)
+    top_ips_str = top_ips.to_string()
+
+    # Send an email with the top IPs to the specified address
+    send_email(
+        to='joegilldata@gmail.com',
+        subject='Top 3 Traffic IPs (AM Branch)',
+        html_content=top_ips_str,
+    )
+
+def send_email_pm(**kwargs):
+    ti = kwargs['ti']
+    df = ti.xcom_pull(task_ids='filter_pm', key='df_pm')
+    ip_traffic = df.groupby('ip')['gbps'].sum().reset_index() # Step 1: Aggregate the data by IP and calculate the total traffic (sum of 'gbps')    
+    ip_traffic_sorted = ip_traffic.sort_values(by='gbps', ascending=False) # Sort the DataFrame in descending order by traffic ('gbps')
+    top_ips = ip_traffic_sorted.head(3)  # Get the IP addresses with the highest traffic (top N IPs, e.g., top 5)
+    top_ips_str = top_ips.to_string()
+
+    # Send an email with the top IPs to the specified address
+    send_email(
+        to='joegilldata@gmail.com',
+        subject='Top 3 Traffic IPs (PM Branch)',
+        html_content=top_ips_str,
+    )
+
+read_traffic_data = PythonOperator(
+    task_id='read_traffic_data',
+    python_callable=read_traffic_data,
+    dag=task_3
+)
+
+filter_ips = PythonOperator(
+    task_id='filter_ips',
+    python_callable=filter_ips,
+    dag=task_3
+)
+
+filter_am = PythonOperator(
+    task_id='filter_am',
+    python_callable=filter_am,
+    dag=task_3
+)
+
+filter_pm = PythonOperator(
+    task_id='filter_pm',
+    python_callable=filter_pm,
+    dag=task_3
+)
+
+day_of_week = BranchPythonOperator(
+    task_id='day_of_week',
+    python_callable=day_of_week,
+    provide_context=True,
+    dag=task_3,
+)
+
+send_email_am = BranchPythonOperator(
+    task_id='send_email_am',
+    python_callable=send_email_am,
+    provide_context=True,
+    dag=task_3,
+)
+
+do_nothing_am = DummyOperator(
+    task_id='do_nothing_am',
+    dag=task_3,
+)
+
+send_email_pm = BranchPythonOperator(
+    task_id='send_email_pm',
+    python_callable=send_email_pm,
+    provide_context=True,
+    dag=task_3,
+)
+
+read_traffic_data >> filter_ips >> split_am_pm >> [filter_am, filter_pm]
+
+filter_pm >> send_email_pm
+
+filter_am >> day_of_week
+
+day_of_week >> [do_nothing_am, send_email_am]
+

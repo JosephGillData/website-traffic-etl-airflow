@@ -1,0 +1,10 @@
+venv/
+airflow-webserver.err
+airflow-webserver.log
+airflow-webserver.out
+airflow-webserver.pid
+airflow.db
+webserver_config.py
+logs/
+airflow.cfg
+.DS_Store
