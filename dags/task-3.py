@@ -16,7 +16,7 @@ task_3 = DAG(
     "task_3",
 
     start_date=datetime(2023, 8, 19, 0, 0),  # Replace with a close-to-current timestamp
-    schedule='* * * * *',  # Run every minute
+    schedule='* * * * *', # '0 0 * * *',  # Run every day at midnight
     catchup=False,
     end_date=None,
 
@@ -29,9 +29,7 @@ task_3 = DAG(
 
 def read_traffic_data(**kwargs):
 
-    print('os.environ')
-    print(os.environ)
-    print('os.environ ((((((((((((((((()))))))))))))))))')
+    print('os.environ (((((((((((((((((3.2)))))))))))))))))')
 
     df_traffic_data = pd.read_csv('./data/traffic_data.csv')
     df_traffic_data['bf_date'] = pd.to_datetime(df_traffic_data['bf_date'])
@@ -46,17 +44,8 @@ def filter_ips(**kwargs):
     ip_traffic = df.groupby('ip')['gbps'].sum().reset_index() # Step 1: Aggregate the data by IP and calculate the total traffic (sum of 'gbps')    
     threshold = ip_traffic['gbps'].quantile(0.20) # Step 2: Determine the threshold for low-traffic IPs (e.g., 10th percentile)
     df_ips = ip_traffic[ip_traffic['gbps'] > threshold] # Step 3: Filter low-traffic IPs
-
-    print(df_ips)
-
-    print(df_ips['ip'].values.tolist())
-
     high_ips = df_ips['ip'].values.tolist()
-
     df_filtered = df[df['ip'].isin(high_ips)]
-
-    print(df_filtered)
-
     kwargs['ti'].xcom_push(key='df_filtered', value=df_filtered)
 
 split_am_pm = DummyOperator(task_id='split_am_pm', dag=task_3)
@@ -64,21 +53,12 @@ split_am_pm = DummyOperator(task_id='split_am_pm', dag=task_3)
 def filter_am(**kwargs):
     ti = kwargs['ti']
     df = ti.xcom_pull(task_ids='filter_ips', key='df_filtered')
-
-    print(df)
-    print(type(df))
-    print(df.columns)
     df_am = df[df['is_am']]
     kwargs['ti'].xcom_push(key='df_am', value=df_am)
 
 def filter_pm(**kwargs):
     ti = kwargs['ti']
     df = ti.xcom_pull(task_ids='filter_ips', key='df_filtered')
-
-    print(df)
-    print(type(df))
-    print(df.columns)
-
     df_pm = df[~df['is_am']]
     kwargs['ti'].xcom_push(key='df_pm', value=df_pm)
 
@@ -92,10 +72,12 @@ def day_of_week(**kwargs):
 def send_email_am(**kwargs):
     ti = kwargs['ti']
     df = ti.xcom_pull(task_ids='filter_am', key='df_am')
+    today = datetime.now().date()
     ip_traffic = df.groupby('ip')['gbps'].sum().reset_index() # Step 1: Aggregate the data by IP and calculate the total traffic (sum of 'gbps')    
     ip_traffic_sorted = ip_traffic.sort_values(by='gbps', ascending=False) # Sort the DataFrame in descending order by traffic ('gbps')
-    top_ips = ip_traffic_sorted.head(3)  # Get the IP addresses with the highest traffic (top N IPs, e.g., top 5)
-    top_ips_str = top_ips.to_string()
+    top_ips = ip_traffic_sorted.values.tolist()
+    print('top_ips top_ips top_ips top_ips top_ips', top_ips)
+    top_ips_str = f"The Top three IP addresses with the most traffic before midday on {today} are {top_ips[0][0]}, {top_ips[1][0]} and {top_ips[2][0]}"
 
     # Send an email with the top IPs to the specified address
     send_email(
@@ -107,11 +89,14 @@ def send_email_am(**kwargs):
 def send_email_pm(**kwargs):
     ti = kwargs['ti']
     df = ti.xcom_pull(task_ids='filter_pm', key='df_pm')
+    today = datetime.now().date()
     ip_traffic = df.groupby('ip')['gbps'].sum().reset_index() # Step 1: Aggregate the data by IP and calculate the total traffic (sum of 'gbps')    
     ip_traffic_sorted = ip_traffic.sort_values(by='gbps', ascending=False) # Sort the DataFrame in descending order by traffic ('gbps')
-    top_ips = ip_traffic_sorted.head(3)  # Get the IP addresses with the highest traffic (top N IPs, e.g., top 5)
-    top_ips_str = top_ips.to_string()
+    top_ips = ip_traffic_sorted.values.tolist()  # Get the IP addresses with the highest traffic (top N IPs, e.g., top 5)
+    print('top_ips top_ips top_ips top_ips top_ips', top_ips)
+    top_ips_str = f"The Top three IP addresses with the most traffic after midday on {today} are {top_ips[0][0]}, {top_ips[1][0]} and {top_ips[2][0]}"
 
+    
     # Send an email with the top IPs to the specified address
     send_email(
         to='joegilldata@gmail.com',
