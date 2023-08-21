@@ -20,6 +20,24 @@ Use the traffic data provided in the attached traffic_data.csv file, to create a
 3. Activate the virtual environment - `source venv/bin/activate`.
 4. Install the required packages - `pip install -r requirements.txt`.
 5. Create an airflow.cfg file with:
+
+```
+[core]
+load_examples = False
+
+[scheduler]
+scheduler_interval = 10
+
+[smtp]
+smtp_host = smtp.office365.com
+smtp_starttls = True
+smtp_ssl = False
+smtp_user = YOUR_EMAIL
+smtp_password = YOUR_PASSWORD
+smtp_port = 25
+smtp_mail_from = YOUR_EMAIL
+```
+
 6. Initialse the databse - `airflow db init`.
 7. Create a user -  `airflow users create --username USERNAME --firstname FIRSTNAME --lastname LASTNAME --password PASSWORD --role Admin --email EMAIL`.
 8. Set the environment variables - `source .env`.
