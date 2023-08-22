@@ -46,7 +46,7 @@ smtp_mail_from = YOUR_EMAIL
 
 ### The Dataset
 
-The data is stored in `data/traffic_data.csv`. This dataset contains information on the network traffic of a site on the 13th August 2021. Each row represents a network data point or record. There are over 5 columns and over 60,000 rows. Here's an explanation of each column:
+The data is stored in `data/traffic_data.csv`. This dataset contains information on the network traffic of a site on the 13th August 2021. Each row represents a network data point. There are over 60,000 rows and 5 columns. Here's an explanation of each column:
 * **bf_date**: The date when the observation occurred.
 * **bf_time**: The time when the observation occurred.
 * **id**: A unique identifier for each observation.
@@ -55,7 +55,7 @@ The data is stored in `data/traffic_data.csv`. This dataset contains information
 
 ### ETL Process
 
-The ETL process is performed by a directed acyclical graph (DAG) created in the `task-3` Python script. The image below shows the tasks that form the DAG and how they intereact via task dependencies.
+The ETL process is performed using a directed acyclical graph (DAG) created in the `task-3.py` script. The image below shows the tasks that are performed and how they intereact via task dependencies.
 
 ![Alt Text](Dag.png)
 
@@ -64,16 +64,28 @@ The ETL process is performed by a directed acyclical graph (DAG) created in the 
 * `read_traffic_data`: loads data from `traffic_data.csv` and creates a pandas dataset.
 
 #### Tranform
+
 * `filter_ips`: filters out 20% of the IP addresses with the lowest traffic.
 * `split_am_pm`: creates a branch for the AM and PM data to be analysed in parallel.
 * `filter_am`: filters the data to obtain observations created before midday.
 * `filter_pm`: filters the data to obtain observations after before midday.
 
 #### Load
+
 * `day_of_week`: triggers the `do_nothing_am` function if it's a weekday and triggers the `send_email_am` if it's a weekend.
 * `do_nothing_am`: does nothing.
 * `send_email_am`: obtains the three IP addresses with the most traffic before midday and sends an email containing them.
 * `send_email_pm`: obtains the three IP addresses with the most traffic after midday and sends an email containing them.
+
+### Assumptions
+
+* I sent the emails to a personal email address.
+
+### Further Steps
+
+* Deploy the ETL process the the cloud, rather than being run locally.
+* Connect to a live data source, eather than loading a static .csv file. This is more useful.
+* Add styling the email that is sent out.
 
 ### Author 
 
