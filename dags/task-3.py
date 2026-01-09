@@ -25,9 +25,12 @@ task_3 = DAG(
 )
 
 
+# path configuration - works in both local and Docker environments
+DATA_PATH = os.environ.get('AIRFLOW_HOME', '/opt/airflow') + '/data/traffic_data.csv'
+
 # extract functions
 def read_traffic_data(**kwargs):
-    df_traffic_data = pd.read_csv('./data/traffic_data.csv') # load data from .csv
+    df_traffic_data = pd.read_csv(DATA_PATH) # load data from .csv
     # data cleaning and data processing
     df_traffic_data['bf_date'] = pd.to_datetime(df_traffic_data['bf_date'])
     df_traffic_data['bf_time'] = pd.to_datetime(df_traffic_data['bf_time'], format='%H:%M:%S').dt.time

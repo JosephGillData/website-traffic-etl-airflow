@@ -1,10 +1,43 @@
+# Python
 venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+.venv/
+pip-log.txt
+
+# Airflow
+airflow.db
+airflow.cfg
+webserver_config.py
+airflow-webserver.pid
+airflow-webserver.out
 airflow-webserver.err
 airflow-webserver.log
-airflow-webserver.out
-airflow-webserver.pid
-airflow.db
-webserver_config.py
 logs/
-airflow.cfg
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Environment
+.env
+.env.local
+*.env
+
+# Docker (optional - uncomment if you don't want to track)
+# docker-compose.override.yaml
