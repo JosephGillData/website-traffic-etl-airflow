@@ -1,409 +1,178 @@
 # Website Traffic ETL with Apache Airflow
 
-An automated ETL (Extract, Transform, Load) pipeline using Apache Airflow that analyzes website traffic data and sends daily email reports containing the top 3 IP addresses by traffic volume.
+An ETL pipeline using Apache Airflow that analyzes website traffic data and sends daily email reports with the top 3 IP addresses by traffic volume.
 
-## Table of Contents
+## Quick Start (Docker + WSL)
 
-- [Overview](#overview)
-- [Prerequisites](#prerequisites)
-- [Quick Start (Docker - Recommended)](#quick-start-docker---recommended)
-- [Manual Setup (Without Docker)](#manual-setup-without-docker)
-- [WSL Setup (Windows Users)](#wsl-setup-windows-users)
-- [Configuration](#configuration)
-- [Project Structure](#project-structure)
-- [The Dataset](#the-dataset)
-- [ETL Pipeline](#etl-pipeline)
-- [Troubleshooting](#troubleshooting)
-- [Author](#author)
+### Prerequisites
 
-## Overview
+- **Docker Desktop** with WSL 2 integration enabled
+- **WSL** (Ubuntu recommended)
 
-This pipeline performs the following tasks daily at midnight:
-
-1. **Extract**: Loads traffic data from CSV
-2. **Transform**:
-   - Filters out the bottom 20% of IP addresses by traffic
-   - Splits data into AM (before noon) and PM (after noon) branches
-3. **Load**:
-   - Sends PM traffic report via email (daily)
-   - Sends AM traffic report via email (weekends only)
-
-## Prerequisites
-
-### For Docker Setup (Recommended)
-- [Docker](https://docs.docker.com/get-docker/) (v20.10+)
-- [Docker Compose](https://docs.docker.com/compose/install/) (v2.0+)
-
-### For Manual Setup
-- Python 3.8 - 3.11
-- pip (Python package manager)
-
-## Quick Start (Docker - Recommended)
-
-The easiest way to run this project is using Docker Compose.
-
-### 1. Clone the repository
+### 1. Clone and navigate to the repo
 
 ```bash
+# In your WSL terminal (Ubuntu)
+cd ~
 git clone https://github.com/YOUR_USERNAME/website-traffic-etl-airflow.git
 cd website-traffic-etl-airflow
 ```
 
-### 2. Start the services
+### 2. Set your user ID (avoids permission issues)
 
 ```bash
-docker-compose up -d
+# Check your user ID
+id -u
+
+# If it's not 1000, update .env:
+echo "AIRFLOW_UID=$(id -u)" > .env
 ```
 
-This will start:
-- PostgreSQL database
-- Airflow Webserver (port 8080)
-- Airflow Scheduler
-
-### 3. Access the Airflow UI
-
-Open your browser and go to: **http://localhost:8080**
-
-Default credentials:
-- Username: `airflow`
-- Password: `airflow`
-
-### 4. Enable the DAG
-
-In the Airflow UI, find the `task_3` DAG and toggle it ON.
-
-### 5. Stop the services
+### 3. Start Airflow
 
 ```bash
-docker-compose down
+docker compose up -d
 ```
 
-To also remove the database volume:
-```bash
-docker-compose down -v
-```
-
-## Manual Setup (Without Docker)
-
-### 1. Clone and navigate to the repository
+Wait ~30 seconds for initialization, then check status:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/website-traffic-etl-airflow.git
-cd website-traffic-etl-airflow
+docker compose ps
 ```
 
-### 2. Create and activate a virtual environment
+All services should show "healthy" or "running".
+
+### 4. Access the Airflow UI
+
+Open **http://localhost:8080** in your browser.
+
+| | |
+|---|---|
+| **Username** | `airflow` |
+| **Password** | `airflow` |
+
+### 5. Run the DAG
+
+1. Find `task_3` in the DAG list
+2. Toggle it **ON** (top-left switch)
+3. Click the **Play** button to trigger a manual run
+
+### 6. Stop Airflow
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
+docker compose down
 ```
 
-### 3. Install dependencies
+To also remove the database (fresh start):
 
 ```bash
-pip install -r requirements.txt
+docker compose down -v
 ```
-
-### 4. Set the Airflow home directory
-
-```bash
-export AIRFLOW_HOME=$(pwd)
-```
-
-Or add to your `.bashrc`/`.zshrc`:
-```bash
-echo 'export AIRFLOW_HOME=/path/to/website-traffic-etl-airflow' >> ~/.bashrc
-source ~/.bashrc
-```
-
-### 5. Create the Airflow configuration file
-
-Create `airflow.cfg` in the project root:
-
-```ini
-[core]
-load_examples = False
-dags_folder = /path/to/website-traffic-etl-airflow/dags
-
-[scheduler]
-scheduler_heartbeat_sec = 10
-
-[smtp]
-smtp_host = smtp.office365.com
-smtp_starttls = True
-smtp_ssl = False
-smtp_user = YOUR_EMAIL@outlook.com
-smtp_password = YOUR_PASSWORD
-smtp_port = 587
-smtp_mail_from = YOUR_EMAIL@outlook.com
-```
-
-### 6. Initialize the database
-
-```bash
-airflow db init
-```
-
-### 7. Create an admin user
-
-```bash
-airflow users create \
-    --username admin \
-    --firstname Admin \
-    --lastname User \
-    --password admin \
-    --role Admin \
-    --email admin@example.com
-```
-
-### 8. Start Airflow (requires two terminals)
-
-**Terminal 1 - Start the scheduler:**
-```bash
-source venv/bin/activate
-export AIRFLOW_HOME=$(pwd)
-airflow scheduler
-```
-
-**Terminal 2 - Start the webserver:**
-```bash
-source venv/bin/activate
-export AIRFLOW_HOME=$(pwd)
-airflow webserver --port 8080
-```
-
-### 9. Access the UI
-
-Open **http://localhost:8080** and log in with your credentials.
-
-## WSL Setup (Windows Users)
-
-If you're running this on Windows, use WSL (Windows Subsystem for Linux) for the best experience.
-
-### Installing WSL
-
-1. **Open PowerShell as Administrator** and run:
-   ```powershell
-   wsl --install
-   ```
-
-2. **Restart your computer** when prompted.
-
-3. **Set up your Linux username and password** when WSL launches.
-
-### Installing Docker on WSL
-
-**Option A: Docker Desktop (Recommended for beginners)**
-
-1. Download and install [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/)
-2. In Docker Desktop settings, enable **"Use the WSL 2 based engine"**
-3. Under **Resources > WSL Integration**, enable your WSL distribution
-
-**Option B: Docker Engine directly in WSL (Ubuntu)**
-
-```bash
-# Update packages
-sudo apt update && sudo apt upgrade -y
-
-# Install prerequisites
-sudo apt install -y ca-certificates curl gnupg lsb-release
-
-# Add Docker's official GPG key
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-
-# Add the repository
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# Install Docker
-sudo apt update
-sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-
-# Add your user to the docker group (to run without sudo)
-sudo usermod -aG docker $USER
-
-# Start Docker service
-sudo service docker start
-```
-
-**Log out and back in** for group changes to take effect.
-
-### Running the Project in WSL
-
-1. **Open WSL terminal** (search "Ubuntu" or "WSL" in Windows Start menu)
-
-2. **Navigate to your project:**
-   ```bash
-   cd /mnt/c/Users/YOUR_USERNAME/path/to/website-traffic-etl-airflow
-   ```
-
-   Or clone fresh into your WSL home directory (recommended for better performance):
-   ```bash
-   cd ~
-   git clone https://github.com/YOUR_USERNAME/website-traffic-etl-airflow.git
-   cd website-traffic-etl-airflow
-   ```
-
-3. **Start with Docker:**
-   ```bash
-   docker compose up -d
-   ```
-
-4. **Access the UI** at **http://localhost:8080**
-
-### WSL Tips
-
-- **Performance**: For better performance, keep your project files in the Linux filesystem (`~/projects/`) rather than `/mnt/c/`
-- **VS Code Integration**: Install the [Remote - WSL extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-wsl) to edit files seamlessly
-- **Check Docker is running**: Run `docker ps` - if you get a permission error, ensure Docker service is started: `sudo service docker start`
-
-## Configuration
-
-### Email Configuration
-
-To enable email notifications, configure SMTP settings:
-
-**For Docker**: Create a `.env` file or modify `docker-compose.yaml` to add:
-```yaml
-environment:
-  AIRFLOW__SMTP__SMTP_HOST: smtp.office365.com
-  AIRFLOW__SMTP__SMTP_STARTTLS: "true"
-  AIRFLOW__SMTP__SMTP_SSL: "false"
-  AIRFLOW__SMTP__SMTP_USER: your_email@outlook.com
-  AIRFLOW__SMTP__SMTP_PASSWORD: your_password
-  AIRFLOW__SMTP__SMTP_PORT: 587
-  AIRFLOW__SMTP__SMTP_MAIL_FROM: your_email@outlook.com
-```
-
-**For Manual Setup**: Edit `airflow.cfg` as shown in step 5 of the manual setup.
-
-### Email Recipients
-
-To change the email recipient, edit `dags/task-3.py` and update the `to` parameter in the `send_email_am` and `send_email_pm` functions.
 
 ## Project Structure
 
 ```
 website-traffic-etl-airflow/
 ├── dags/
-│   ├── task-3.py           # Main ETL DAG
-│   └── data-vis.ipynb      # Data exploration notebook
+│   └── task-3.py           # Main ETL DAG
 ├── data/
-│   └── traffic_data.csv    # Traffic dataset (61,150 rows)
+│   └── traffic_data.csv    # Sample traffic data (61K rows)
 ├── logs/                   # Airflow logs (auto-generated)
 ├── plugins/                # Custom Airflow plugins
-├── docker-compose.yaml     # Docker Compose configuration
-├── requirements.txt        # Python dependencies
-├── Dag.png                 # DAG visualization
-└── README.md               # This file
+├── docker-compose.yaml     # Docker services configuration
+├── .env                    # Environment variables (AIRFLOW_UID)
+└── README.md
 ```
 
-## The Dataset
+## Where Things Live
 
-**Location**: `data/traffic_data.csv`
+| What | Location |
+|------|----------|
+| DAGs (your pipelines) | `./dags/` |
+| Logs | `./logs/` |
+| Input data | `./data/` |
+| Airflow UI | http://localhost:8080 |
 
-| Column    | Description                                    |
-|-----------|------------------------------------------------|
-| bf_date   | Date of the observation (YYYY-MM-DD)           |
-| bf_time   | Time of the observation (HH:MM:SS)             |
-| id        | Unique identifier for each observation         |
-| ip        | IP address associated with the traffic         |
-| gbps      | Traffic volume in gigabits per second          |
+## The Pipeline
 
-- **Rows**: 61,150
-- **Date Range**: August 13-14, 2021
+The `task_3` DAG runs daily at midnight and:
 
-## ETL Pipeline
+1. **Extracts** traffic data from CSV
+2. **Transforms** by filtering low-traffic IPs and splitting AM/PM
+3. **Loads** by sending email reports (requires SMTP config)
 
-![DAG Visualization](Dag.png)
+```
+read_traffic_data → filter_ips → split_am_pm → filter_am → day_of_week → [do_nothing_am, send_email_am]
+                                             → filter_pm → send_email_pm
+```
 
-### Tasks
+## Configuration
 
-| Task              | Type              | Description                                           |
-|-------------------|-------------------|-------------------------------------------------------|
-| read_traffic_data | PythonOperator    | Loads CSV data into pandas DataFrame                  |
-| filter_ips        | PythonOperator    | Removes bottom 20% of IPs by traffic                  |
-| split_am_pm       | DummyOperator     | Branch point for parallel processing                  |
-| filter_am         | PythonOperator    | Filters for morning observations (before noon)        |
-| filter_pm         | PythonOperator    | Filters for afternoon observations (after noon)       |
-| day_of_week       | BranchPythonOperator | Routes AM data based on weekday/weekend            |
-| do_nothing_am     | DummyOperator     | No-op for weekday AM data                             |
-| send_email_am     | PythonOperator    | Sends top 3 AM IPs (weekends only)                    |
-| send_email_pm     | PythonOperator    | Sends top 3 PM IPs (daily)                            |
+### Email (Optional)
+
+To enable email reports, add SMTP settings to `docker-compose.yaml` under `x-airflow-common.environment`:
+
+```yaml
+AIRFLOW__SMTP__SMTP_HOST: smtp.gmail.com
+AIRFLOW__SMTP__SMTP_PORT: 587
+AIRFLOW__SMTP__SMTP_STARTTLS: "true"
+AIRFLOW__SMTP__SMTP_USER: your_email@gmail.com
+AIRFLOW__SMTP__SMTP_PASSWORD: your_app_password
+AIRFLOW__SMTP__SMTP_MAIL_FROM: your_email@gmail.com
+```
+
+Then update the recipient email in `dags/task-3.py` (search for `joegilldata@gmail.com`).
 
 ## Troubleshooting
 
-### Docker Issues
+### "Cannot connect to Docker daemon"
 
-**"Cannot connect to the Docker daemon"**
 ```bash
-# Start Docker service
+# If using Docker Desktop, make sure it's running
+# If using Docker Engine in WSL:
 sudo service docker start
-
-# Or if using Docker Desktop, ensure it's running
 ```
 
-**"Port 8080 already in use"**
-```bash
-# Find what's using the port
-sudo lsof -i :8080
+### "Permission denied" on logs/
 
-# Or change the port in docker-compose.yaml:
+```bash
+# Set correct ownership
+sudo chown -R $(id -u):$(id -g) logs/
+```
+
+### DAG not appearing
+
+```bash
+# Check for syntax errors
+docker compose exec airflow-webserver python /opt/airflow/dags/task-3.py
+
+# Or check scheduler logs
+docker compose logs airflow-scheduler
+```
+
+### Port 8080 already in use
+
+Edit `docker-compose.yaml` and change the port mapping:
+
+```yaml
 ports:
-  - "8081:8080"
+  - "8081:8080"  # Access at localhost:8081
 ```
 
-**"Permission denied" errors**
+### Starting fresh
+
 ```bash
-# Add user to docker group
-sudo usermod -aG docker $USER
-# Then log out and back in
+docker compose down -v
+docker compose up -d
 ```
 
-### Airflow Issues
+## Tech Stack
 
-**DAG not appearing in UI**
-- Check for Python syntax errors: `python dags/task-3.py`
-- Ensure `AIRFLOW_HOME` is set correctly
-- Wait a few minutes for the scheduler to pick it up
-
-**Database errors**
-```bash
-# Reset the database (warning: loses all DAG history)
-airflow db reset
-airflow db init
-```
-
-**Import errors for pandas/numpy**
-```bash
-# Ensure you're in the virtual environment
-source venv/bin/activate
-pip install pandas numpy
-```
-
-### WSL Issues
-
-**Slow file access on /mnt/c/**
-- Move your project to the Linux filesystem: `~/projects/`
-- Clone fresh instead of accessing Windows files
-
-**Docker not working in WSL**
-- Ensure Docker Desktop has WSL integration enabled
-- Or start Docker service: `sudo service docker start`
-
-## Future Improvements
-
-- Deploy to cloud infrastructure (AWS, GCP, Azure)
-- Connect to live data sources instead of static CSV
-- Add HTML styling to email reports
-- Implement data validation and error handling
-- Add monitoring and alerting
+- **Airflow 2.7.0** - Workflow orchestration
+- **PostgreSQL 15** - Metadata database
+- **Python 3.11** - Runtime (inside container)
+- **pandas/numpy** - Data processing
 
 ## Author
 
-**Joseph Gill**
-
-- [Personal Website](https://joegilldata.com)
-- [LinkedIn](https://www.linkedin.com/in/joseph-gill-726b52182/)
-- [Twitter](https://twitter.com/JoeGillData)
+**Joseph Gill** - [joegilldata.com](https://joegilldata.com)

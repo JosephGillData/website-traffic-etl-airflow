@@ -9,10 +9,9 @@ import os
 
 # airflow packages
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.empty import EmptyOperator
+from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow.utils.email import send_email
-from airflow.operators.python_operator import BranchPythonOperator
 
 
 # initiate a DAG instance
@@ -50,7 +49,7 @@ def filter_ips(**kwargs):
     df_filtered = df[df['ip'].isin(high_ips)]
     kwargs['ti'].xcom_push(key='df_filtered', value=df_filtered)
 
-split_am_pm = DummyOperator(task_id='split_am_pm', dag=task_3) # dummy operator so we can create AM and PM branches
+split_am_pm = EmptyOperator(task_id='split_am_pm', dag=task_3) # empty operator so we can create AM and PM branches
 
 def filter_am(**kwargs):
     ti = kwargs['ti']
@@ -135,26 +134,23 @@ filter_pm = PythonOperator(
 day_of_week = BranchPythonOperator(
     task_id='day_of_week',
     python_callable=day_of_week,
-    provide_context=True,
     dag=task_3,
 )
 
-send_email_am = BranchPythonOperator(
+send_email_am = PythonOperator(
     task_id='send_email_am',
     python_callable=send_email_am,
-    provide_context=True,
     dag=task_3,
 )
 
-do_nothing_am = DummyOperator(
+do_nothing_am = EmptyOperator(
     task_id='do_nothing_am',
     dag=task_3,
 )
 
-send_email_pm = BranchPythonOperator(
+send_email_pm = PythonOperator(
     task_id='send_email_pm',
     python_callable=send_email_pm,
-    provide_context=True,
     dag=task_3,
 )
 
