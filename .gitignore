@@ -37,7 +37,10 @@ Thumbs.db
 # Environment
 .env
 .env.local
-*.env
+!.env.example
+/venv
 
 # Docker (optional - uncomment if you don't want to track)
 # docker-compose.override.yaml
+
+/.claude

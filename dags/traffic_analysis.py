@@ -13,10 +13,23 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow.utils.email import send_email
 
+# Get alert email from environment variable
+ALERT_EMAIL = os.environ.get('ALERT_EMAIL', 'joegilldata@gmail.com')
+
+# Default args with email on failure
+default_args = {
+    'owner': 'airflow',
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+    'email': [ALERT_EMAIL],
+    'email_on_failure': True,
+    'email_on_retry': False,
+}
 
 # initiate a DAG instance
 task_3 = DAG(
-    "task_3",
+    "traffic_analysis",
+    default_args=default_args,
     start_date=datetime(2023, 8, 19, 0, 0),
     schedule='0 0 * * *', # Run every day at midnight
     catchup=False,
